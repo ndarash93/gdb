@@ -1,0 +1,3 @@
+
+  #1058 poll_resolv -> #1701 reload_servers -> #1800 add_update_server
+  RFC 1035 Section 4.1.3 (Resource Record Format)
