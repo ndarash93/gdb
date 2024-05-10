@@ -8,13 +8,24 @@ class MyBreakpoint:
         self.rand_init()
         self.read_opts()
 
-    def watchPoint(self, expr, cont=True):
+    def watchPoint(self, expr, cont=True, definition=None):
         class WatchPoint(gdb.Breakpoint):
-            def stop(self):
-                print(f"{expr}: Just a test")
-                return cont
+            def __init__(self, expr, cont, definition):
+                print(isinstance(self, gdb.Breakpoint))
+                super().__init__(gdb.BP_WATCHPOINT)
+                self.expr = expr
+                self.cont = cont
+                if definition:
+                    self.stop = definition
+                else:
+                    self.stop = self.definition
 
-        return WatchPoint(expr, gdb.BP_WATCHPOINT)
+            def definition(self):
+                if self.definition:
+                    print(f"{self.expr}: This is just a test")
+                return self.cont
+
+        return WatchPoint(expr, cont, definition)
 
     def clean(self):
         print("Resetting all breakpoints")
@@ -29,19 +40,10 @@ class MyBreakpoint:
         bp = Main("main")
 
     def rand_init(self):
-        class RandInit(gdb.Breakpoint):
-            def __init__(self, expr, watchPoint):
-                super().__init__(expr)
-                self.watchPoint = watchPoint
+        def definition():
+            print("Hi from the function")
 
-            def stop(self):
-                print("Function: rand_init()")
-                seedWatch = self.watchPoint("seed", cont=False)
-                # seedWatch = gdb.Breakpoint("seed", gdb.BP_WATCHPOINT)
-                inWatch = gdb.Breakpoint("in", gdb.BP_WATCHPOINT)
-                return False
-
-        rand = RandInit("rand_init", self.watchPoint)
+        self.watchPoint("rand_init", True, definition)
 
     def read_opts(self):
         class ReadOpts(gdb.Breakpoint):
