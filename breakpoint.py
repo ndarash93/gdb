@@ -12,7 +12,7 @@ class MyBreakpoint:
         class WatchPoint(gdb.Breakpoint):
             def __init__(self, expr, cont, definition):
                 print(isinstance(self, gdb.Breakpoint))
-                super().__init__(gdb.BP_WATCHPOINT)
+                super().__init__(expr, gdb.BP_WATCHPOINT)
                 self.expr = expr
                 self.cont = cont
                 if definition:
