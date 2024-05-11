@@ -5,8 +5,9 @@ class MyBreakpoint:
     def __init__(self):
         self.clean()
         self.main()
-        self.rand_init()
-        self.read_opts()
+        # self.rand_init()
+        # self.read_opts()
+        self.netlink_init()
 
     def myWatchPoint(self, expr, definition=None):
         class WatchPoint(gdb.Breakpoint):
@@ -42,6 +43,25 @@ class MyBreakpoint:
                 return True
 
         return BreakPoint(function, definition)
+
+    def myFinishPoint(self, frame, definition=None):
+        class FinishPoint(gdb.FinishBreakpoint):
+            def __init__(self, frame, definition):
+                if not isinstance(self, gdb.FinishBreakpoint):
+                    return False
+                super().__init__(frame)
+                print(frame)
+                self.frame = frame
+                if definition:
+                    self.stop = definition
+                else:
+                    self.stop = self.definition
+
+            def definition(self):
+                print("Generic Finish")
+                return True
+
+        return FinishPoint(frame, definition)
 
     def clean(self):
         print("Resetting all breakpoints")
@@ -94,6 +114,30 @@ class MyBreakpoint:
 
     def mark_servers(self):
         pass
+
+    def netlink_init(self):
+        def stopFinish():
+            print("Stop function called")
+            frame = gdb.selected_frame()
+            addr = frame.read_var("addr")
+            netlinkfd = frame.read_var("daemon->netlinkfd")
+            print(f"Address: {addr}")
+            print(f"Netlink: {netlinkfd}")
+            return True
+
+        def stopBreak():
+            frame = gdb.selected_frame()
+            addr = frame.read_var("addr")
+            print(f"Address at beggining of function: {addr}")
+            if stopped := self.myFinishPoint(frame, definition=stopFinish):
+                print("Stop point set successfully")
+            else:
+                print("Failed")
+            return False
+
+        print(
+            f"Setting breakpoint {self.myBreakPoint('netlink_init', definition=stopBreak)}"
+        )
 
 
 myBreakpoint = MyBreakpoint()
