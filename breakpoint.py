@@ -8,10 +8,11 @@ class MyBreakpoint:
         self.rand_init()
         self.read_opts()
 
-    def watchPoint(self, expr, definition=None):
+    def myWatchPoint(self, expr, definition=None):
         class WatchPoint(gdb.Breakpoint):
             def __init__(self, expr, definition):
-                print(isinstance(self, gdb.Breakpoint))
+                if not isinstance(self, gdb.Breakpoint):
+                    return False
                 super().__init__(expr, gdb.BP_WATCHPOINT)
                 self.expr = expr
                 if definition:
@@ -20,8 +21,6 @@ class MyBreakpoint:
                     self.stop = self.definition
 
             def definition(self):
-                if self.definition:
-                    print(f"{self.expr}: This is just a test")
                 return True
 
         return WatchPoint(expr, definition)
@@ -29,7 +28,8 @@ class MyBreakpoint:
     def myBreakPoint(self, function, definition=None):
         class BreakPoint(gdb.Breakpoint):
             def __init__(self, function, definition):
-                print(isinstance(self, gdb.Breakpoint))
+                if not isinstance(self, gdb.Breakpoint):
+                    return False
                 super().__init__(function)
                 self.funtion = function
                 if definition:
@@ -48,10 +48,10 @@ class MyBreakpoint:
         for bp in gdb.breakpoints():
             bp.delete()
 
-    # ===================================================================================================================== #
-    # ===================================================================================================================== #
-    # ===================================================================================================================== #
-    # ===================================================================================================================== #
+    # =========================================================================================== #
+    # =========================================================================================== #
+    # =========================================================================================== #
+    # =========================================================================================== #
 
     def main(self):
         def stop():
@@ -66,22 +66,28 @@ class MyBreakpoint:
             return False
 
         def watchPointDefinition():
+            print("Test")
             frame = gdb.selected_frame()
             watch = frame.read_var("seed")
             print(f"Seed: {watch}")
             return False
 
         self.myBreakPoint("rand_init", definition=breakdefinition)
-        self.watchPoint("seed", definition=watchPointDefinition)
 
     def read_opts(self):
+        def stopWatch():
+            frame = gdb.selected_frame()
+            option = frame.read_var("option")
+            print(f"Option: {option}")
+            return False
+
         def stop():
             print("Function: read_opts()")
             frame = gdb.selected_frame()
             argc = frame.read_var("argc")
             argv = frame.read_var("argv")
             print(f"{argc}: arguments, {argv.dereference().string()}")
-            # c = gdb.Breakpoint("c", gdb.BP_WATCHPOINT)
+            watch = self.myWatchPoint("option", definition=stopWatch)
             return False
 
         bp = self.myBreakPoint("read_opts", definition=stop)
