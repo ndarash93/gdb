@@ -13,7 +13,7 @@ class MyBreakpoint:
         class WatchPoint(gdb.Breakpoint):
             def __init__(self, expr, definition):
                 if not isinstance(self, gdb.Breakpoint):
-                    return False
+                    print("Something weird")
                 super().__init__(expr, gdb.BP_WATCHPOINT)
                 self.expr = expr
                 if definition:
@@ -30,7 +30,7 @@ class MyBreakpoint:
         class BreakPoint(gdb.Breakpoint):
             def __init__(self, function, definition):
                 if not isinstance(self, gdb.Breakpoint):
-                    return False
+                    print("Something weird")
                 super().__init__(function)
                 self.funtion = function
                 if definition:
@@ -48,9 +48,9 @@ class MyBreakpoint:
         class FinishPoint(gdb.FinishBreakpoint):
             def __init__(self, frame, definition):
                 if not isinstance(self, gdb.FinishBreakpoint):
-                    return False
+                    print("Something weird")
                 super().__init__(frame)
-                print(frame)
+                # print(frame)
                 self.frame = frame
                 if definition:
                     self.stop = definition
@@ -60,6 +60,9 @@ class MyBreakpoint:
             def definition(self):
                 print("Generic Finish")
                 return True
+
+            def out_of_scope():
+                print("Abnormal Finish")
 
         return FinishPoint(frame, definition)
 
@@ -119,14 +122,17 @@ class MyBreakpoint:
         def stopFinish():
             print("Stop function called")
             frame = gdb.selected_frame()
-            addr = frame.read_var("addr")
-            netlinkfd = frame.read_var("daemon->netlinkfd")
+            print("LOOK HERE FINISH", frame.name())
+            addr = frame.read_var("slen")
+            daemon = frame.read_var("dnsmasq_daemon").dereference()
+            netlinkfd = daemon["netlinkfd"]
             print(f"Address: {addr}")
             print(f"Netlink: {netlinkfd}")
             return True
 
         def stopBreak():
             frame = gdb.selected_frame()
+            print("LOOK HERE BREAK", frame.name())
             addr = frame.read_var("addr")
             print(f"Address at beggining of function: {addr}")
             if stopped := self.myFinishPoint(frame, definition=stopFinish):
@@ -137,6 +143,35 @@ class MyBreakpoint:
 
         print(
             f"Setting breakpoint {self.myBreakPoint('netlink_init', definition=stopBreak)}"
+        )
+
+    def cache_init(self):
+        def stopFinish():
+            frame = gdb.selected_frame()
+            crec = frame.read_var("crecp")
+            i = frame.read_var("i")
+            cachesize = frame.read_var("daemon->cachesize")
+            print(f"crecp after cache_init: {crec}")
+            print(f"Amount of crec: {i}")
+            print(f"New Cachesize: {cachesize}")
+            return True
+
+        def stopBreak():
+            frame = gdb.selected_frame()
+            crec = frame.read_var("crecp")
+            i = frame.read_var("i")
+            cachesize = frame.read_var("daemon->cachesize")
+            print(f"crecp after cache_init: {crec}")
+            print(f"Amount of crec: {i}")
+            print(f"New Cachesize: {cachesize}")
+            if stopped := self.myFinishPoint(frame, definition=stopFinish):
+                print(f"Stop point: {stopped}")
+            else:
+                print("Failed cache_init")
+            return False
+
+        print(
+            f"Setting breakpoint: {self.myBreakPoint('cache_init', definition=stopBreak)}"
         )
 
 
