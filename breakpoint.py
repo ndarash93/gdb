@@ -8,6 +8,7 @@ class MyBreakpoint:
         # self.rand_init()
         # self.read_opts()
         self.netlink_init()
+        self.cache_init()
 
     def myWatchPoint(self, expr, definition=None):
         class WatchPoint(gdb.Breakpoint):
@@ -61,7 +62,7 @@ class MyBreakpoint:
                 print("Generic Finish")
                 return True
 
-            def out_of_scope():
+            def out_of_scope(self):
                 print("Abnormal Finish")
 
         return FinishPoint(frame, definition)
@@ -135,10 +136,10 @@ class MyBreakpoint:
             print("LOOK HERE BREAK", frame.name())
             addr = frame.read_var("addr")
             print(f"Address at beggining of function: {addr}")
-            if stopped := self.myFinishPoint(frame, definition=stopFinish):
-                print("Stop point set successfully")
-            else:
-                print("Failed")
+            # if stopped := self.myFinishPoint(frame, definition=stopFinish):
+            #    print("Stop point set successfully")
+            # else:
+            #    print("Failed")
             return False
 
         print(
@@ -147,32 +148,43 @@ class MyBreakpoint:
 
     def cache_init(self):
         def stopFinish():
-            frame = gdb.selected_frame()
-            crec = frame.read_var("crecp")
-            i = frame.read_var("i")
-            cachesize = frame.read_var("daemon->cachesize")
-            print(f"crecp after cache_init: {crec}")
-            print(f"Amount of crec: {i}")
-            print(f"New Cachesize: {cachesize}")
             return True
+
+        def stopWatch():
+            frame = gdb.selected_frame()
+            if frame.name() == "cache_init":
+                i = frame.read_var("i")
+                crec = frame.read_var("crecp")
+                print(f"({frame.name()}) {i}: {crec.dereference()}")
+            return False
 
         def stopBreak():
             frame = gdb.selected_frame()
             crec = frame.read_var("crecp")
             i = frame.read_var("i")
-            cachesize = frame.read_var("daemon->cachesize")
+            daemon = frame.read_var("dnsmasq_daemon").dereference()
+            cachesize = daemon["cachesize"]
             print(f"crecp after cache_init: {crec}")
             print(f"Amount of crec: {i}")
             print(f"New Cachesize: {cachesize}")
-            if stopped := self.myFinishPoint(frame, definition=stopFinish):
-                print(f"Stop point: {stopped}")
-            else:
-                print("Failed cache_init")
+            self.myFinishPoint(frame, definition=stopFinish)
+            iWatch = self.myWatchPoint("i", stopWatch)
+            if iWatch:
+                print(f"iWatch created: {iWatch}")
             return False
 
         print(
             f"Setting breakpoint: {self.myBreakPoint('cache_init', definition=stopBreak)}"
         )
+
+    def poll(self):
+        pass
+
+    def check_dns_listeners(self):
+        pass
+
+    def enumerate_interfaces(self):
+        pass
 
 
 myBreakpoint = MyBreakpoint()
