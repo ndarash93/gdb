@@ -7,8 +7,9 @@ class MyBreakpoint:
         self.main()
         # self.rand_init()
         # self.read_opts()
-        self.netlink_init()
-        self.cache_init()
+        # self.netlink_init()
+        # self.cache_init()
+        self.check_dns_listeners()
 
     def myWatchPoint(self, expr, definition=None):
         class WatchPoint(gdb.Breakpoint):
@@ -53,17 +54,18 @@ class MyBreakpoint:
                 super().__init__(frame)
                 # print(frame)
                 self.frame = frame
+                self.name = frame.name()
                 if definition:
                     self.stop = definition
                 else:
                     self.stop = self.definition
 
             def definition(self):
-                print("Generic Finish")
+                print(f"Completed function {self.name}")
                 return True
 
             def out_of_scope(self):
-                print("Abnormal Finish")
+                print(f"Abnormal Finish {self.name}")
 
         return FinishPoint(frame, definition)
 
@@ -177,11 +179,64 @@ class MyBreakpoint:
             f"Setting breakpoint: {self.myBreakPoint('cache_init', definition=stopBreak)}"
         )
 
-    def poll(self):
-        pass
-
     def check_dns_listeners(self):
-        pass
+        def stop_watch_server():
+            frame = gdb.selected_frame()
+            if frame.read_var("serverfdp"):
+                server = frame.read_var("serverfdp").dereference()
+                print(f"Server fd: {server['fd']} -> {server['interface'].string()}")
+            return False
+
+        def stop_watch_listener():
+            frame = gdb.selected_frame()
+            if frame.read_var("listener"):
+                listener = frame.read_var("listener").dereference()
+                print(
+                    f"Listener fd: {listener['fd']}, \
+                    tcpfd: {listener['tcpfd']}, \
+                    tftpfd: {listener['tftpfd']}, \
+                    used: {listener['used']}"
+                )
+                if listener["iface"]:
+                    iface = listener["iface"].dereference()
+                    print(f"iface: {iface}")
+            return False
+
+        def stop_watch_rfl():
+            frame = gdb.selected_frame()
+            if frame.read_var("rfl"):
+                rfl = frame.read_var("rfl").dereference()
+                rfd = rfl["rfd"].dereference()
+                next = rfl["next"]
+
+            # while next:
+            #    rfl = next.dereference()
+            #    rfd = rfl["rfd"].dereference()
+            #    next = rfl["next"]
+            #    print(f"rfd: {rfd}")
+            return False
+
+        def check_dns_listeners_stop_break():
+            frame = gdb.selected_frame()
+            print("Break set at set_dns_listeners")
+            server_watch = self.myWatchPoint("serverfdp", definition=stop_watch_server)
+            listener_watch = self.myWatchPoint(
+                "listener", definition=stop_watch_listener
+            )
+            rfl_watch = self.myWatchPoint("rfl", definition=stop_watch_rfl)
+
+            def check_dns_listeners_stop_finish():
+                server_watch.delete()
+                listener_watch.delete()
+                rfl_watch.delete()
+                return True
+
+            self.myFinishPoint(frame, definition=check_dns_listeners_stop_finish)
+            return False
+
+        check_dns_listener_watch = self.myBreakPoint(
+            "check_dns_listeners", definition=check_dns_listeners_stop_break
+        )
 
     def enumerate_interfaces(self):
         pass
