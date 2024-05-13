@@ -11,22 +11,22 @@ class MyBreakpoint:
         # self.cache_init()
         self.check_dns_listeners()
 
-    def myWatchPoint(self, expr, definition=None):
+    def myWatchPoint(self, expr, factory=None):
         class WatchPoint(gdb.Breakpoint):
-            def __init__(self, expr, definition):
+            def __init__(self, expr, factory):
                 if not isinstance(self, gdb.Breakpoint):
                     print("Something weird")
                 super().__init__(expr, gdb.BP_WATCHPOINT)
                 self.expr = expr
-                if definition:
-                    self.stop = definition
+                if factory:
+                    self.stop = factory(self.delete)
                 else:
                     self.stop = self.definition
 
             def definition(self):
                 return True
 
-        return WatchPoint(expr, definition)
+        return WatchPoint(expr, factory)
 
     def myBreakPoint(self, function, definition=None):
         class BreakPoint(gdb.Breakpoint):
@@ -180,50 +180,69 @@ class MyBreakpoint:
         )
 
     def check_dns_listeners(self):
-        def stop_watch_server():
-            frame = gdb.selected_frame()
-            if frame.read_var("serverfdp"):
-                server = frame.read_var("serverfdp").dereference()
-                print(f"Server fd: {server['fd']} -> {server['interface'].string()}")
-            return False
+        def stop_watch_server_factory(delete):
+            def stop_watch_server():
+                frame = gdb.selected_frame()
+                if frame.read_var("serverfdp"):
+                    server = frame.read_var("serverfdp").dereference()
+                    print(
+                        f"Server fd: {server['fd']} -> {server['interface'].string()}"
+                    )
+                else:
+                    delete()
+                return True
 
-        def stop_watch_listener():
-            frame = gdb.selected_frame()
-            if frame.read_var("listener"):
-                listener = frame.read_var("listener").dereference()
-                print(
-                    f"Listener fd: {listener['fd']}, \
-                    tcpfd: {listener['tcpfd']}, \
-                    tftpfd: {listener['tftpfd']}, \
-                    used: {listener['used']}"
-                )
-                if listener["iface"]:
-                    iface = listener["iface"].dereference()
-                    print(f"iface: {iface}")
-            return False
+            return stop_watch_server
 
-        def stop_watch_rfl():
-            frame = gdb.selected_frame()
-            if frame.read_var("rfl"):
-                rfl = frame.read_var("rfl").dereference()
-                rfd = rfl["rfd"].dereference()
-                next = rfl["next"]
+        def stop_watch_listener_factory(delete):
+            def stop_watch_listener():
+                frame = gdb.selected_frame()
+                if frame.read_var("listener"):
+                    listener = frame.read_var("listener").dereference()
+                    print(
+                        f"Listener fd: {listener['fd']}, \
+                        tcpfd: {listener['tcpfd']}, \
+                        tftpfd: {listener['tftpfd']}, \
+                        used: {listener['used']}"
+                    )
+                    if listener["iface"]:
+                        iface = listener["iface"].dereference()
+                        print(f"iface: {iface}")
+                else:
+                    delete()
+                return False
 
-            # while next:
-            #    rfl = next.dereference()
-            #    rfd = rfl["rfd"].dereference()
-            #    next = rfl["next"]
-            #    print(f"rfd: {rfd}")
-            return False
+            return stop_watch_listener
+
+        def stop_watch_rfl_factory(delete):
+            def stop_watch_rfl():
+                frame = gdb.selected_frame()
+                if frame.read_var("rfl"):
+                    rfl = frame.read_var("rfl").dereference()
+                    rfd = rfl["rfd"].dereference()
+                    next = rfl["next"]
+
+                # while next:
+                #    rfl = next.dereference()
+                #    rfd = rfl["rfd"].dereference()
+                #    next = rfl["next"]
+                #    print(f"rfd: {rfd}")
+                else:
+                    delete()
+                return False
+
+            return stop_watch_rfl
 
         def check_dns_listeners_stop_break():
             frame = gdb.selected_frame()
             print("Break set at set_dns_listeners")
-            server_watch = self.myWatchPoint("serverfdp", definition=stop_watch_server)
-            listener_watch = self.myWatchPoint(
-                "listener", definition=stop_watch_listener
+            server_watch = self.myWatchPoint(
+                "serverfdp", factory=stop_watch_server_factory
             )
-            rfl_watch = self.myWatchPoint("rfl", definition=stop_watch_rfl)
+            listener_watch = self.myWatchPoint(
+                "listener", factory=stop_watch_listener_factory
+            )
+            rfl_watch = self.myWatchPoint("rfl", factory=stop_watch_rfl_factory)
 
             def check_dns_listeners_stop_finish():
                 server_watch.delete()
