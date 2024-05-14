@@ -232,6 +232,19 @@ class MyBreakpoint:
                 return True
 
             self.myFinishPoint(frame, definition=check_dns_listeners_stop_finish)
+
+            sym_line = frame.find_sal()
+            print(sym_line)
+            symtab = sym_line.symtab
+            print(symtab)
+            linetable = symtab.linetable()
+            print(linetable)
+            i = 0
+            for line in linetable:
+                i = i + 1
+                # print(line)
+            print(i)
+
             return False
 
         check_dns_listener_watch = self.myBreakPoint(
