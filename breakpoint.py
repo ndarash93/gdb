@@ -9,7 +9,8 @@ class MyBreakpoint:
         # self.read_opts()
         # self.netlink_init()
         # self.cache_init()
-        self.check_dns_listeners()
+        # self.set_dns_listeners()
+        self.enumerate_interfaces()
 
     def myWatchPoint(self, expr, definition=None):
         class WatchPoint(gdb.Breakpoint):
@@ -179,7 +180,7 @@ class MyBreakpoint:
             f"Setting breakpoint: {self.myBreakPoint('cache_init', definition=stopBreak)}"
         )
 
-    def check_dns_listeners(self):
+    def set_dns_listeners(self):
         def stop_watch_server():
             frame = gdb.selected_frame()
             if frame.read_var("serverfdp"):
@@ -216,7 +217,7 @@ class MyBreakpoint:
             #    print(f"rfd: {rfd}")
             return False
 
-        def check_dns_listeners_stop_break():
+        def set_dns_listeners_stop_break():
             frame = gdb.selected_frame()
             print("Break set at set_dns_listeners")
             server_watch = self.myWatchPoint("serverfdp", definition=stop_watch_server)
@@ -225,21 +226,55 @@ class MyBreakpoint:
             )
             rfl_watch = self.myWatchPoint("rfl", definition=stop_watch_rfl)
 
-            def check_dns_listeners_stop_finish():
+            def set_dns_listeners_stop_finish():
                 server_watch.delete()
                 listener_watch.delete()
                 rfl_watch.delete()
                 return True
 
-            self.myFinishPoint(frame, definition=check_dns_listeners_stop_finish)
+            self.myFinishPoint(frame, definition=set_dns_listeners_stop_finish)
             return False
 
-        check_dns_listener_watch = self.myBreakPoint(
-            "check_dns_listeners", definition=check_dns_listeners_stop_break
+        set_dns_listener_watch = self.myBreakPoint(
+            "set_dns_listeners", definition=set_dns_listeners_stop_break
         )
 
-    def enumerate_interfaces(self):
+    def bind_dhcp_device(self):
         pass
+
+    def poll_listen(self):
+        pass
+
+    def is_dad_listener(self):
+        pass
+
+    def enumerate_interfaces(self):
+        # frame = gdb.selected_frame()
+        # print(f"11111: {frame.name}")
+
+        def stop_event(event):
+            gdb.events.stop.disconnect(stop_event)
+            # print(dir(event.breakpoint))
+            # print(gdb.selected_frame().name())
+            frame = gdb.selected_frame()
+            function_name = frame.name()
+            print(f"Enumerate Interfaces: {function_name}")
+            while function_name == gdb.newest_frame().name():
+                frame = gdb.selected_frame()
+                sal = frame.find_sal()
+                # print(f"Status: {sal.is_valid()} | {sal.symtab} | {sal.line}")
+                print(f"{sal.symtab.filename} - {function_name}: {sal.line}")
+                serv = frame.read_var("serv").dereference()
+                print(serv["interface"].string())
+                gdb.execute("next")
+            print(f"Exiting to function {gdb.newest_frame().name()}")
+
+        def enumerate_interfaces_stepper():
+            gdb.events.stop.connect(stop_event)
+            return True
+
+        self.myBreakPoint("enumerate_interfaces", enumerate_interfaces_stepper)
+        # gdb.events.stop.connect(stop_event)
 
 
 myBreakpoint = MyBreakpoint()
