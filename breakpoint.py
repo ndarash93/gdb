@@ -250,25 +250,15 @@ class MyBreakpoint:
         pass
 
     def enumerate_interfaces(self):
-        # frame = gdb.selected_frame()
-        # print(f"11111: {frame.name}")
-
         def enumerate_interfaces_stop_event(event):
             gdb.events.stop.disconnect(enumerate_interfaces_stop_event)
-            # print(dir(event.breakpoint))
-            # print(gdb.selected_frame().name())
             frame = gdb.selected_frame()
             function_name = frame.name()
+            return_type = frame.function()
             print(f"Enumerate Interfaces: {function_name}")
+            print(f"{function_name}")
             while function_name == gdb.newest_frame().name():
                 frame = gdb.selected_frame()
-                sal = frame.find_sal()
-                # print(f"Status: {sal.is_valid()} | {sal.symtab} | {sal.line}")
-                print(f"{sal.symtab.filename} - {function_name}: {sal.line}")
-                spare = frame.read_var("spare")
-                param = frame.read_var("param")
-                print(f"Spare: {spare}")
-                print(f"Param: {param}")
                 gdb.execute("next")
             print(f"Exiting to function {gdb.newest_frame().name()}")
 
@@ -281,14 +271,11 @@ class MyBreakpoint:
 
     def iface_enumerate(self):
         def iface_enumerate_stop_event(event):
-            gdb.events.stop.disconnect("iface_enumerate_stop_event")
+            gdb.events.stop.disconnect(iface_enumerate_stop_event)
             function_name = gdb.selected_frame().name()
             print(f"iface_enumerate: {function_name}")
             while function_name == gdb.newest_frame().name():
                 frame = gdb.selected_frame()
-                sal = frame.find_sal()
-                # print(f"Status: {sal.is_valid()} | {sal.symtab} | {sal.line}")
-                print(f"{sal.symtab.filename} - {function_name}: {sal.line}")
                 gdb.execute("next")
             print(f"Exiting to function {gdb.newest_frame().name()}")
 
